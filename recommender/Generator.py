@@ -8,6 +8,10 @@ import numpy as np
 import os
 import csv
 
+os.environ['CXCALC_PATH'] = '/home/h205c/chemaxon/bin'
+
+
+
 
 class Generator:
     """
@@ -172,56 +176,58 @@ class Generator:
         # merge the original combos with the expaneded grid
         self.all_combos_expanded = pd.concat(
             [self.all_combos, expanded_grid_df], axis=1)
+
+        self.all_combos_expanded.to_csv("../sample_data/combos.csv")
         return self.all_combos_expanded
 
 
 if __name__ == "__main__":
 
-    # Running order: generate(), generateDescriptor(), expandedgrid()
     #os.environ['CXCALC_PATH'] = '/home/h205c/chemaxon/bin'
-    """
-    os.environ['CXCALC_PATH'] = '/Applications/MarvinSuite/bin'
-    turl = "./sample_data/triples_and_amounts.json"
-    gurl = "./sample_data/grid_params.json"
-    test = Generator(turl, gurl)
-    test.generate_grid()
-    desf = "./sample_data/descriptors_list.json"
-    outputfile = "./sample_data/descriptoroutput.txt"
-    test.generate_descriptors(desf, outputfile)
-    combos = test.generate_expanded_grid()
+    #os.environ['CXCALC_PATH'] = '/Applications/MarvinSuite/bin'
+    
+    # Generate possible reactions
+    # turl = "../sample_data/triples_and_amounts.json"
+    # gurl = "../sample_data/grid_params.json"
+    # test = Generator(turl, gurl)
+    # test.generate_grid()
+    # desf = "../sample_data/descriptors_list.json"
+    # outputfile = "../sample_data/descriptoroutput.txt"
+    # test.generate_descriptors(desf, outputfile)
+    
+    # Print generator output(saved to file as well)
+    # combos = test.generate_expanded_grid()
     # print(combos)
+    
 
+    # Below is working for direct import of csv files 
+    all_data = '../sample_data/nature17439-s2.csv'
+    validation_file = "../sample_data/validation.csv"
+    # all_data = '../sample_data/combos.csv'
+    # validation_file = "../sample_data/combos.csv"
+    
 
-        Testing MLmodel class only. After calling train,predict,and sieve: 
-        generate train.csv>test.csv>train.arff>test.arff>J48.model>predict.csv
-        return a data frame of successful reactions
-
-        TODO: 
-        To do the validation, you need to do the following data preprocessing manually
-        1. Remove attributes starting with XXX and implement whitelist in train()
-        2. Convert attribute of "outcome" from regression (numeric) to classification {0,1} 
-        3. Remove the attribute "purity", which is the second outcome instead of one of the training parameters 
-        4. For validation data, change 'outcome' to '?' for weka to make predictions (see weka documentation)
-        Bugs
-        1. _convert() works but there's some error about reading unknown attributes
-        2. in train(): the weka command doesnt work as it says train and test are not compatible.
-        I checked that train.arff and test.arff have same attributes. Maybe due to bug 1?
-        3. Due to the previous errors I couldn't get the output yet, but the files
-        are generated correctly from start to end
-    """
-    all_data = './sample_data/nature17439-s2.csv'
-    validation_file = "./sample_data/validation.csv"
+    # Filter whitelist
     from ml_models import WekaModel
     data = pd.read_csv(all_data, low_memory=False)
     whitelist = [col for col in data.columns if 'XXX' not in col]
 
-    mlmodel = WekaModel("J48", all_data, validation_file,
-                        descriptor_whitelist=whitelist)
 
+    # Run ML model
+    # Avaliable models are SVM, J48, LogisticRegression, KNN, RandomForest
+    mlmodel = WekaModel("RandomForest", all_data, validation_file,
+                        descriptor_whitelist=whitelist)
+    # optional parameter for train():
+    # k for number of neighbors for KNN, i for randomforest number
     mlmodel.train()
     mlmodel.predict()
-    # print(mlmodel.sieve())
+    mlmodel.sieve()
 
-    #df = mlmodel.sieve(test.all_combos_expanded)
-    # print(df)
-    # print(df)
+    # Output predictions
+    correct = 0
+    for i in range(len(mlmodel.predictions)):
+    	if mlmodel.predictions[i] == mlmodel.actual[i]:
+    		correct +=1
+    print("Accuracy:"+"{:.3%}".format(correct/len(mlmodel.predictions)))
+
+
